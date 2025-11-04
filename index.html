@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Data Structure Visualizer</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d1117;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    header {
+      background: #1f6feb;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    /* Dashboard container */
+    .dashboard {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      padding: 40px;
+    }
+
+    /* Each card */
+    .card {
+      background: #161b22;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      background: #1f2937;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      color: #58a6ff;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <header>Data Structure Visualizer</header>
+
+  <div class="dashboard">
+    <div class="card" onclick="location.href='stack.html'">
+      <h2>Stack</h2>
+      <p>LIFO (Last In First Out) structure with Push, Pop, Peek operations</p>
+    </div>
+
+    <div class="card" onclick="location.href='queue.html'">
+      <h2>Queue</h2>
+      <p>FIFO (First In First Out) structure with Enqueue, Dequeue operations</p>
+    </div>
+
+    <div class="card" onclick="location.href='linkedlist.html'">
+      <h2>Linked List</h2>
+      <p>Dynamic nodes connected with pointers, supports insertion & deletion</p>
+    </div>
+
+    <div class="card" onclick="location.href='tree.html'">
+      <h2>Binary Tree</h2>
+      <p>Hierarchical structure with parent-child relationships</p>
+    </div>
+  </div>
+
+</body>
+</html>
