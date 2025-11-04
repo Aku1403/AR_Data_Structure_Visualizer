@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Web AR Stack Demo (Marker-based)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <!-- AR.js for A-Frame -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background: #111; color: #fff; }
+    .ui {
+      position: absolute; left: 10px; top: 10px; z-index: 10;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .ui button {
+      background: #1f6feb; color: white; border: none; padding: 8px 12px;
+      border-radius: 6px; font-size: 14px; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .ui button:active { transform: translateY(1px); }
+    .hint {
+      position: absolute;
+      bottom: 0;              /* move to bottom */
+      left: 0;                /* start from left edge */
+      width: 100%;            /* full width strip */
+      background: rgba(0,0,0,0.75);
+      padding: 12px;
+      font-size: 20px;
+      text-align: center;     /* center align text */
+      box-sizing: border-box; /* so padding doesn’t overflow */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ui">
+    <button id="pushBtn">Push</button>
+    <button id="popBtn">Pop</button>
+    <button id="peekBtn">Peek</button>
+    <button id="isEmptyBtn">IsEmpty</button>
+    <button id="isFullBtn">IsFull</button>
+    <button id="clearBtn">Clear</button>
+  </div>
+
+  <div class="hint" id="hintBox">
+    Show the <strong>HIRO</strong> marker to camera.<br>
+    (Use printed marker or open another screen with the marker image)
+  </div>
+
+  <!-- A-Frame scene with AR.js enabled -->
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="antialias: true; alpha: true"
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+  >
+    <!-- Lights -->
+    <a-entity light="type: directional; intensity: 0.8" position="0 1 0"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.6"></a-entity>
+
+    <!-- HIRO Marker -->
+    <a-marker preset="hiro">
+      <!-- base plane -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="1" height="1" color="#222" opacity="0.1"></a-plane>
+      <!-- container for boxes -->
+      <a-entity id="stackContainer" position="0 0 0"></a-entity>
+      <!-- label -->
+      <a-text value="Stack (marker)" align="center" position="0 0.65 0" color="#fff" scale="1 1 1"></a-text>
+    </a-marker>
+
+    <!-- camera -->
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // UI elements
+    const stackContainer = document.getElementById('stackContainer');
+    const pushBtn = document.getElementById('pushBtn');
+    const popBtn = document.getElementById('popBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const peekBtn = document.getElementById('peekBtn');
+    const isEmptyBtn = document.getElementById('isEmptyBtn');
+    const isFullBtn = document.getElementById('isFullBtn');
+    const hintBox = document.getElementById('hintBox');
+
+    // Stack
+    const stack = [];
+    let MAX_SIZE = parseInt(prompt("Enter maximum size of the stack:", "5"));
+    if (isNaN(MAX_SIZE) || MAX_SIZE <= 0) MAX_SIZE = 5;
+
+    function showHint(message) {
+      hintBox.innerHTML = message;
+    }
+
+    // Create a box entity
+    function createBoxEntity(value, yPosition) {
+      const box = document.createElement('a-box');
+      box.setAttribute('width', 0.6);
+      box.setAttribute('height', 0.3);
+      box.setAttribute('depth', 0.6);
+      box.setAttribute('position', `0 ${yPosition} 0`);
+      box.setAttribute('color', '#FF8C42'); // bright & visible
+      box.setAttribute('material', 'metalness:0.1; roughness:0.4;');
+
+      const label = document.createElement('a-text');
+      label.setAttribute('value', value);
+      label.setAttribute('align', 'center');
+      label.setAttribute('color', 'black');
+      label.setAttribute('position', '0 0 0.35');
+      label.setAttribute('scale', '0.6 0.6 0.6');
+
+      box.appendChild(label);
+      return box;
+    }
+
+    // Push
+    function pushValue() {
+      const definition = "Push Operation:<br>Adds an element to the top of the stack.";
+      if (stack.length >= MAX_SIZE) {
+        showHint(`${definition}<br><strong>Result:</strong> Cannot push, stack is full (${MAX_SIZE}).`);
+        return;
+      }
+      const val = prompt('Enter value to push:');
+      if (val === null || val.trim() === "") return;
+      const index = stack.length;
+      const y = 0.3 + index * 0.35; // raised base height
+      const box = createBoxEntity(val, y);
+      stackContainer.appendChild(box);
+      stack.push(box);
+      animateIn(box);
+      console.log("Pushed:", val, "Current stack size:", stack.length);
+      showHint(`${definition}<br><strong>Result:</strong> Inserted "${val}" into stack.`);
+    }
+
+    // Pop
+    function popValue() {
+      const definition = "Pop Operation:<br>Removes the top element from the stack.";
+      if (stack.length === 0) {
+        showHint(`${definition}<br><strong>Result:</strong> Stack is empty, nothing to remove.`);
+        return;
+      }
+      const top = stack.pop();
+      const label = top.querySelector('a-text').getAttribute('value');
+      animateOutAndRemove(top);
+      console.log("Popped:", label, "Current stack size:", stack.length);
+      showHint(`${definition}<br><strong>Result:</strong> Removed "${label}" from stack.`);
+    }
+
+    // Peek
+    function peekValue() {
+      const definition = "Peek Operation:<br>Shows the top element without removing it.";
+      if (stack.length === 0) {
+        showHint(`${definition}<br><strong>Result:</strong> Stack is empty.`);
+      } else {
+        const top = stack[stack.length - 1];
+        const label = top.querySelector('a-text').getAttribute('value');
+        showHint(`${definition}<br><strong>Result:</strong> Top element is "${label}".`);
+      }
+    }
+
+    // IsEmpty
+    function checkIsEmpty() {
+      const definition = "IsEmpty Operation:<br>Checks whether the stack has no elements.";
+      if (stack.length === 0) {
+        showHint(`${definition}<br><strong>Result:</strong> Yes, stack is empty.`);
+      } else {
+        showHint(`${definition}<br><strong>Result:</strong> No, stack contains elements.`);
+      }
+    }
+
+    // IsFull
+    function checkIsFull() {
+      const definition = "IsFull Operation:<br>Checks whether the stack reached maximum size.";
+      if (stack.length >= MAX_SIZE) {
+        showHint(`${definition}<br><strong>Result:</strong> Yes, stack is full (${MAX_SIZE}/${MAX_SIZE}).`);
+      } else {
+        showHint(`${definition}<br><strong>Result:</strong> No, stack has space (${stack.length}/${MAX_SIZE}).`);
+      }
+    }
+
+    // Clear
+    function clearStack() {
+      const definition = "Clear Operation:<br>Removes all elements from the stack.";
+      while(stack.length) {
+        const it = stack.pop();
+        if (it.parentNode) it.parentNode.removeChild(it);
+      }
+      showHint(`${definition}<br><strong>Result:</strong> Stack has been emptied.`);
+    }
+
+    // Animations
+    function animateIn(el) {
+      el.setAttribute('scale', '0.01 0.01 0.01');
+      let s = 0.01;
+      const t = setInterval(() => {
+        s += 0.08;
+        if (s >= 1) {
+          el.setAttribute('scale', '1 1 1');
+          clearInterval(t);
+        } else {
+          el.setAttribute('scale', `${s} ${s} ${s}`);
+        }
+      }, 30);
+    }
+
+    function animateOutAndRemove(el) {
+      let s = 1;
+      const t = setInterval(() => {
+        s -= 0.08;
+        el.setAttribute('scale', `${Math.max(s,0.01)} ${Math.max(s,0.01)} ${Math.max(s,0.01)}`);
+        if (s <= 0.02) {
+          clearInterval(t);
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }
+      }, 30);
+    }
+
+    // Events
+    pushBtn.addEventListener('click', pushValue);
+    popBtn.addEventListener('click', popValue);
+    peekBtn.addEventListener('click', peekValue);
+    isEmptyBtn.addEventListener('click', checkIsEmpty);
+    isFullBtn.addEventListener('click', checkIsFull);
+    clearBtn.addEventListener('click', clearStack);
+
+    // Keep boxes aligned
+    function recomputePositions() {
+      stack.forEach((el, idx) => {
+        const y = 0.3 + idx * 0.35;
+        el.setAttribute('position', `0 ${y} 0`);
+      });
+    }
+    const observer = new MutationObserver(() => { recomputePositions(); });
+    observer.observe(stackContainer, { childList: true });
+  </script>
+</body>
+</html>

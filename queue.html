@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Web AR Queue Demo (Marker-based)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <!-- AR.js -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #111; color: #fff; }
+
+    .ui {
+      position: absolute; left: 10px; top: 10px; z-index: 10;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+
+    .ui button {
+      background: #1f6feb; color: white; border: none;
+      padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    .ui button:active { transform: translateY(1px); }
+
+    .hint {
+      position: absolute; bottom: 0; left: 0; width: 100%;
+      background: rgba(0,0,0,0.75); padding: 12px;
+      font-size: 20px; text-align: center; box-sizing: border-box;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ui">
+    <button id="enqueueBtn">Enqueue</button>
+    <button id="dequeueBtn">Dequeue</button>
+    <button id="frontBtn">Front</button>
+    <button id="isEmptyBtn">IsEmpty</button>
+    <button id="isFullBtn">IsFull</button>
+    <button id="clearBtn">Clear</button>
+  </div>
+
+  <div class="hint" id="hintBox">
+    Show the <strong>HIRO</strong> marker to camera.<br>
+    (Use printed marker or open another screen with the marker image)
+  </div>
+
+  <!-- AR Scene -->
+  <a-scene embedded vr-mode-ui="enabled: false" renderer="antialias: true; alpha: true"
+           arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-entity light="type: directional; intensity: 0.8" position="0 1 0"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.6"></a-entity>
+
+    <a-marker preset="hiro">
+      <a-plane position="0 0 0" rotation="-90 0 0" width="2" height="1" color="#222" opacity="0.1"></a-plane>
+      <a-entity id="queueContainer" position="0 0 0"></a-entity>
+      <a-text value="Queue (marker)" align="center" position="0 0.8 0" color="yellow"></a-text>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    const queueContainer = document.getElementById('queueContainer');
+    const enqueueBtn = document.getElementById('enqueueBtn');
+    const dequeueBtn = document.getElementById('dequeueBtn');
+    const frontBtn = document.getElementById('frontBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const isEmptyBtn = document.getElementById('isEmptyBtn');
+    const isFullBtn = document.getElementById('isFullBtn');
+    const hintBox = document.getElementById('hintBox');
+
+    const queue = [];
+    let MAX_SIZE = parseInt(prompt("Enter maximum size of the queue:", "5"));
+    if (isNaN(MAX_SIZE) || MAX_SIZE <= 0) MAX_SIZE = 5;
+
+    function showHint(msg) { hintBox.innerHTML = msg; }
+
+    function createBoxEntity(value, xPosition) {
+      const box = document.createElement('a-box');
+      box.setAttribute('width', 0.4);
+      box.setAttribute('height', 0.3);
+      box.setAttribute('depth', 0.4);
+      box.setAttribute('position', `${xPosition} 0.15 0`);
+      box.setAttribute('color', '#00BFFF');
+      box.setAttribute('material', 'metalness:0.1; roughness:0.5;');
+
+      const label = document.createElement('a-text');
+      label.setAttribute('value', value);
+      label.setAttribute('align', 'center');
+      label.setAttribute('color', 'black');
+      label.setAttribute('position', '0 0 0.35');
+      label.setAttribute('scale', '0.6 0.6 0.6');
+      box.appendChild(label);
+      return box;
+    }
+
+    enqueueBtn.onclick = () => {
+      if (queue.length >= MAX_SIZE) { showHint("Queue Overflow!"); return; }
+      const val = prompt("Enter element to enqueue:");
+      if (val === null || val === "") return;
+
+      const xPos = queue.length * 0.6 - ((MAX_SIZE - 1) * 0.3);
+      const newBox = createBoxEntity(val, xPos);
+      queue.push(newBox);
+      queueContainer.appendChild(newBox);
+      showHint(`${val} enqueued`);
+    };
+
+    dequeueBtn.onclick = () => {
+      if (queue.length === 0) { showHint("Queue Underflow!"); return; }
+
+      const frontBox = queue.shift();
+      frontBox.setAttribute('color', 'red');
+      showHint(`${frontBox.children[0].getAttribute('value')} dequeued`);
+      setTimeout(() => queueContainer.removeChild(frontBox), 500);
+
+      queue.forEach((b, i) => {
+        const newX = i * 0.6 - ((MAX_SIZE - 1) * 0.3);
+        b.setAttribute('position', `${newX} 0.15 0`);
+      });
+    };
+
+    frontBtn.onclick = () => {
+      if (queue.length === 0) { showHint("Queue is empty"); return; }
+      const front = queue[0];
+      front.setAttribute('color', 'yellow');
+      showHint(`Front element: ${front.children[0].getAttribute('value')}`);
+      setTimeout(() => front.setAttribute('color', '#00BFFF'), 600);
+    };
+
+    isEmptyBtn.onclick = () => showHint(queue.length === 0 ? "Queue is empty" : "Queue not empty");
+    isFullBtn.onclick = () => showHint(queue.length >= MAX_SIZE ? "Queue is full" : "Queue not full");
+    clearBtn.onclick = () => {
+      while (queue.length > 0) queueContainer.removeChild(queue.pop());
+      showHint("Queue cleared");
+    };
+  </script>
+</body>
+</html>
+

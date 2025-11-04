@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Interactive Binary Tree (Web AR)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <!-- AR.js -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      overflow: hidden;
+    }
+    .ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ui button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+    .ui button:active {
+      transform: translateY(1px);
+    }
+    .hint {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 12px;
+      text-align: center;
+      box-sizing: border-box;
+      font-size: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- UI Buttons -->
+  <div class="ui">
+    <button onclick="addNode()">Add Node</button>
+    <button onclick="deleteNodePrompt()">Delete Node</button>
+    <button onclick="searchNodePrompt()">Search Node</button>
+    <button onclick="traversePrompt()">Traverse Tree</button>
+    <button onclick="resetTree()">Reset Tree</button>
+  </div>
+
+  <!-- Dynamic function description -->
+  <div class="hint" id="functionHint">Point your camera at the AR marker to see the Binary Tree.</div>
+
+  <!-- AR Scene -->
+  <a-scene embedded vr-mode-ui="enabled: false" renderer="antialias: true; alpha: true"
+           arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-entity light="type: directional; intensity: 0.8" position="0 1 0"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.6"></a-entity> 
+    <a-marker preset="hiro">
+      <!-- Marker Label -->
+      <a-text value="Binary Tree Marker"
+              position="0 0.8 0"
+              color="yellow"
+              align="center"
+	      scale="1 1 1">
+      </a-text>
+
+      <!-- Tree container -->
+      <a-entity id="treeRoot"></a-entity>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // --- Helper function for function description ---
+    function showFunctionHint(text) {
+      const hintBox = document.getElementById("functionHint");
+      hintBox.innerHTML = text;
+    }
+
+    // --- BST Node class ---
+    class Node {
+      constructor(value, parent = null) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+        this.parent = parent;
+        this.x = 0;
+        this.y = 0;
+      }
+    }
+
+    let root = null;
+    const treeRoot = document.getElementById("treeRoot");
+
+    // --- Add Node ---
+    function addNode() {
+      showFunctionHint("Add Node: Prompts for a number and inserts it into the binary search tree.");
+      const value = parseInt(prompt("Enter a number to add:"));
+      if (isNaN(value)) return alert("Please enter a valid number!");
+      root = insertNode(root, value, null);
+      layoutTree(root, -2, 2, 0);
+      renderTree(root);
+    }
+
+    function insertNode(node, value, parent) {
+      if (!node) return new Node(value, parent);
+      if (value < node.value) node.left = insertNode(node.left, value, node);
+      else if (value > node.value) node.right = insertNode(node.right, value, node);
+      else { alert("Duplicate value not allowed!"); }
+      return node;
+    }
+
+    // --- Delete Node ---
+    function deleteNodePrompt() {
+      showFunctionHint("Delete Node: Prompts for a number and deletes that node from the tree if it exists.");
+      if (!root) return alert("Tree is empty!");
+      const value = parseInt(prompt("Enter the number to delete:"));
+      if (isNaN(value)) return alert("Please enter a valid number!");
+      root = deleteNode(root, value);
+      if (root) layoutTree(root, -2, 2, 0);
+      renderTree(root);
+    }
+
+    function deleteNode(node, value) {
+      if (!node) { alert("Node not found!"); return null; }
+      if (value < node.value) node.left = deleteNode(node.left, value);
+      else if (value > node.value) node.right = deleteNode(node.right, value);
+      else {
+        if (!node.left && !node.right) return null;
+        if (!node.left) return node.right;
+        if (!node.right) return node.left;
+        let succ = node.right;
+        while (succ.left) succ = succ.left;
+        node.value = succ.value;
+        node.right = deleteNode(node.right, succ.value);
+      }
+      return node;
+    }
+
+    // --- Search Node ---
+    function searchNodePrompt() {
+      showFunctionHint("Search Node: Prompts for a number and highlights the path from root to that node.");
+      if (!root) return alert("Tree is empty!");
+      const value = parseInt(prompt("Enter number to search:"));
+      if (isNaN(value)) return alert("Please enter a valid number!");
+      const path = [];
+      const found = searchNode(root, value, path);
+      if (!found) return alert("Node not found!");
+      alert(`Path to ${value}: ${path.join(" → ")}`);
+      highlightTraversal(path);
+    }
+
+    function searchNode(node, value, path) {
+      if (!node) return false;
+      path.push(node.value);
+      if (node.value === value) return true;
+      if (value < node.value) return searchNode(node.left, value, path);
+      return searchNode(node.right, value, path);
+    }
+
+    // --- Layout Tree to avoid overlaps ---
+    function layoutTree(node, minX, maxX, depth) {
+      if (!node) return;
+      node.y = -depth * 0.6;
+      node.x = (minX + maxX) / 2;
+      layoutTree(node.left, minX, node.x - 0.2, depth + 1);
+      layoutTree(node.right, node.x + 0.2, maxX, depth + 1);
+    }
+
+    // --- Render Tree ---
+    function renderTree(node) {
+      treeRoot.innerHTML = "";
+      drawNode(node);
+    }
+
+    function drawNode(node) {
+      if (!node) return;
+
+      // link to parent
+      if (node.parent) {
+        const link = document.createElement("a-cylinder");
+        const midX = (node.x + node.parent.x) / 2;
+        const midY = (node.y + node.parent.y) / 2;
+        const height = Math.sqrt(Math.pow(node.x - node.parent.x, 2) + Math.pow(node.y - node.parent.y, 2));
+        link.setAttribute("position", `${midX} ${midY} 0`);
+        link.setAttribute("height", height);
+        link.setAttribute("radius", 0.02);
+        link.setAttribute("rotation", `0 0 ${node.x > node.parent.x ? -45 : 45}`);
+        link.setAttribute("color", "white");
+        treeRoot.appendChild(link);
+      }
+
+      // sphere
+      const sphere = document.createElement("a-sphere");
+      sphere.setAttribute("position", `${node.x} ${node.y} 0`);
+      sphere.setAttribute("radius", "0.15");
+      sphere.setAttribute("color", "#00BFFF");
+      sphere.setAttribute("id", `node-${node.value}`);
+      treeRoot.appendChild(sphere);
+
+      // label
+      const label = document.createElement("a-text");
+      label.setAttribute("value", node.value);
+      label.setAttribute("position", `${node.x - 0.1} ${node.y + 0.25} 0`);
+      label.setAttribute("color", "white");
+      label.setAttribute("scale", "0.6 0.6 0.6");
+      treeRoot.appendChild(label);
+
+      drawNode(node.left);
+      drawNode(node.right);
+    }
+
+    // --- Traversal ---
+    async function traversePrompt() {
+      showFunctionHint("Traverse Tree: Prompts for traversal type (preorder/inorder/postorder) and highlights nodes in that order.");
+      if (!root) return alert("Tree is empty!");
+      const type = prompt("Enter traversal type: preorder / inorder / postorder").toLowerCase();
+      if (!["preorder","inorder","postorder"].includes(type)) return alert("Invalid type!");
+
+      let order = [];
+      if (type === "preorder") preorder(root, order);
+      else if (type === "inorder") inorder(root, order);
+      else postorder(root, order);
+
+      alert(`Traversal (${type}): ${order.join(" → ")}`);
+      await highlightTraversal(order);
+    }
+
+    function preorder(node, order) {
+      if (!node) return;
+      order.push(node.value);
+      preorder(node.left, order);
+      preorder(node.right, order);
+    }
+
+    function inorder(node, order) {
+      if (!node) return;
+      inorder(node.left, order);
+      order.push(node.value);
+      inorder(node.right, order);
+    }
+
+    function postorder(node, order) {
+      if (!node) return;
+      postorder(node.left, order);
+      postorder(node.right, order);
+      order.push(node.value);
+    }
+
+    // --- Highlight Traversal ---
+    async function highlightTraversal(order) {
+      for (let val of order) {
+        const nodeEl = document.getElementById(`node-${val}`);
+        if (nodeEl) {
+          nodeEl.setAttribute("color","#FFD700");
+          await new Promise(r => setTimeout(r, 1000));
+          nodeEl.setAttribute("color","#00BFFF");
+        }
+      }
+    }
+
+    // --- Reset ---
+    function resetTree() {
+      showFunctionHint("Reset Tree: Clears all nodes and resets the tree to empty.");
+      root = null;
+      treeRoot.innerHTML = "";
+    }
+
+  </script>
+</body>
+</html>
+
